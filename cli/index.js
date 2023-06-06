@@ -2,6 +2,7 @@ const https = require('https')
 const { exec } = require('child_process')
 const { startTimer, clearTimer } = require('./utils/loading')
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0
+process.env.NODE_NO_WARNINGS = 1;
 
 function getGitRaw() {
   startTimer({
@@ -12,43 +13,27 @@ function getGitRaw() {
     (res) => {
       startTimer({
         msg: '🎉  请求数据成功！',
-        abs:true // eslint-disable-line no-param-reassign, no-underscore-dangle, no-multi-
+        abs: true 
       })
-      res.on('data', (data) => {
-        let list = Object.values(JSON.parse(data.toString()).devDependencies).flat()
+      res.on('data', async (data) => {
+        let oData = JSON.parse(data.toString())
+        let devDependencies = Object.values(oData.devDependencies).flat()
+        const script = oData.script
+        await cmd({cmd:script.volta,msg:"指定node版本"})
+        await cmd({cmd:`cnpm install -D ${devDependencies.join(' ')}`,msg:'安装依赖：'})
       })
     }
   )
 }
 getGitRaw()
-// https
-//   .get(
-//     'https://raw.githubusercontent.com/chendj89/install/master/index.json',
-//     (res) => {
-//       console.log('状态码：', res.statusCode)
-//       res.on('data', (data) => {
-//         let list = Object.values(JSON.parse(data.toString())).flat()
-//        install(list.join(' '))
-//       })
-//     }
-//   )
-//   .on('error', (e) => {
-//     console.error(e)
-//   })
 
-// const install = (data) => {
-//   console.log(`cnpm install -D ${data}`)
-//   const loading = setInterval(() => {
-//     process.stdout.write('.')
-//   }, 100)
-//   exec(`cnpm install -D ${data}`, (error, stdout, stderr) => {
-//     // 清除加载动画
-//     clearInterval(loading)
-//     if (error) {
-//       console.error(`执行出错: ${error}`)
-//       return
-//     }
-//     console.log(`stdout: ${stdout}`)
-//     console.error(`stderr: ${stderr}`)
-//   })
-// }
+const cmd = ({ cmd, msg = '' }) => {
+  msg && startTimer({ msg })
+  return new Promise((resolve) => {
+    exec(cmd, (error, stdout, stderr) => {
+      msg && clearTimer()
+      console.log('\n' + stderr)
+      resolve(true)
+    })
+  })
+}
